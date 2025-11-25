@@ -1,10 +1,13 @@
-name: Dotnet Build
+name: Dotnet Build - 03-app-dotnet
 
-on: push   # Jab push hoga tab build chalega
+on: 
+  push:
+    branches: [ main ]
+  workflow_dispatch:   # optional manual run
 
 jobs:
   build:
-    runs-on: ubuntu-latest   # Machine (runner)
+    runs-on: ubuntu-latest
 
     steps:
       - name: Checkout code
@@ -13,10 +16,41 @@ jobs:
       - name: Setup .NET SDK
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '7.0.x'   # Apne project ka version daalo (5,6,7,8)
+          dotnet-version: '7.0.x'   # <-- change to 6.0.x or 8.0.x if your project targets a different version
 
-      - name: Restore dependencies
-        run: dotnet restore
+      - name: Debug - list relevant files
+        run: |
+          echo "Listing 03-app-dotnet folder"
+          ls -la 03-app-dotnet || true
+          echo "Looking for .sln / .csproj under 03-app-dotnet"
+          find 03-app-dotnet -maxdepth 4 -type f \( -name '*.sln' -o -name '*.csproj' \) -print || true
 
-      - name: Build project
-        run: dotnet build --no-restore
+      - name: Find solution/project and restore
+        run: |
+          # prefer solution if exists
+          SOL=$(find 03-app-dotnet -maxdepth 4 -name '*.sln' -print -quit)
+          if [ -n "$SOL" ]; then
+            echo "Found solution: $SOL"
+            dotnet restore "$SOL"
+            SOL_PATH="$SOL"
+          else
+            PROJ=$(find 03-app-dotnet -maxdepth 4 -name '*.csproj' -print -quit)
+            if [ -n "$PROJ" ]; then
+              echo "Found project: $PROJ"
+              dotnet restore "$PROJ"
+              SOL_PATH="$PROJ"
+            else
+              echo "ERROR: No .sln or .csproj found in 03-app-dotnet. Aborting."
+              exit 1
+            fi
+          fi
+
+      - name: Build
+        run: |
+          if [ -n "$SOL_PATH" ]; then
+            echo "Building $SOL_PATH"
+            dotnet build "$SOL_PATH" --no-restore
+          else
+            echo "Nothing to build"
+            exit 1
+          fi
