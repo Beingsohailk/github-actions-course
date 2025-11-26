@@ -1,28 +1,39 @@
-name: Dotnet Build - Self-hosted
+name: Deploy (quick) to self-hosted Windows
 
 on:
+  workflow_dispatch:
   push:
     branches: [ "main" ]
-  workflow_dispatch:
 
 jobs:
-  build:
-    runs-on: self-hosted
+  publish-and-run:
+    runs-on: [self-hosted, Windows]
 
     steps:
-      - name: Checkout code
+      - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup .NET (if needed on runner)
+      - name: Setup .NET (optional)
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '8.0.x'
+          dotnet-version: '6.0.x' # or change to 7.0.x/8.0.x if you upgrade
 
-      - name: Restore (point to folder)
-        run: dotnet restore ./03-app-dotnet
+      - name: Publish app
+        run: dotnet publish ./03-app-dotnet -c Release -o C:\apps\myapp\publish
 
-      - name: Build
-        run: dotnet build ./03-app-dotnet --no-restore
+      - name: Stop existing process (if running)
+        shell: pwsh
+        run: |
+          $proc = Get-Process -Name "MyApp" -ErrorAction SilentlyContinue
+          if ($proc) {
+            Write-Host "Stopping existing process..."
+            $proc | Stop-Process -Force
+          }
 
-      - name: Test
-        run: dotnet test ./03-app-dotnet --no-build --verbosity normal
+      - name: Start app (background)
+        shell: pwsh
+        run: |
+          $exe = "C:\Program Files\dotnet\dotnet.exe"
+          $dll = "C:\apps\myapp\publish\YourApp.dll"   # <-- change to your DLL name
+          Start-Process -FilePath $exe -ArgumentList $dll -WindowStyle Hidden
+          Write-Host "Started app: $dll"
