@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
 
 env:
-  IMAGE_NAME: beingsohailk/03-app-dotnet   # <-- change if you want a different image name
+  IMAGE_NAME: beingsohail/03-app-dotnet   # <-- change if you want a different image name
 
 jobs:
   build-and-push:
