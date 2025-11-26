@@ -31,7 +31,7 @@ jobs:
               }
 
       - name: Start app (background)
-        shell: pwsh
+        shell: powershell
         run: |
           $exe = "C:\Program Files\dotnet\dotnet.exe"
           $dll = "C:\apps\myapp\publish\YourApp.dll"   # <-- change to your DLL name
