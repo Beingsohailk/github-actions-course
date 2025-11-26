@@ -1,56 +1,43 @@
-name: Dotnet Build - 03-app-dotnet
+name: Deploy (service) to self-hosted Windows
 
-on: 
+on:
+  workflow_dispatch:
   push:
-    branches: [ main ]
-  workflow_dispatch:   # optional manual run
+    branches: [ "main" ]
 
 jobs:
-  build:
-    runs-on: ubuntu-latest
+  publish-and-restart-service:
+    runs-on: [self-hosted, Windows]
 
     steps:
-      - name: Checkout code
+      - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup .NET SDK
+      - name: Setup .NET (optional)
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '7.0.x'   # <-- change to 6.0.x or 8.0.x if your project targets a different version
+          dotnet-version: '6.0.x'
 
-      - name: Debug - list relevant files
-        run: |
-          echo "Listing 03-app-dotnet folder"
-          ls -la 03-app-dotnet || true
-          echo "Looking for .sln / .csproj under 03-app-dotnet"
-          find 03-app-dotnet -maxdepth 4 -type f \( -name '*.sln' -o -name '*.csproj' \) -print || true
+      - name: Publish app to temp folder
+        run: dotnet publish ./03-app-dotnet -c Release -o C:\apps\myapp\publish-temp
 
-      - name: Find solution/project and restore
+      - name: Copy files to deployment folder
+        shell: pwsh
         run: |
-          # prefer solution if exists
-          SOL=$(find 03-app-dotnet -maxdepth 4 -name '*.sln' -print -quit)
-          if [ -n "$SOL" ]; then
-            echo "Found solution: $SOL"
-            dotnet restore "$SOL"
-            SOL_PATH="$SOL"
-          else
-            PROJ=$(find 03-app-dotnet -maxdepth 4 -name '*.csproj' -print -quit)
-            if [ -n "$PROJ" ]; then
-              echo "Found project: $PROJ"
-              dotnet restore "$PROJ"
-              SOL_PATH="$PROJ"
-            else
-              echo "ERROR: No .sln or .csproj found in 03-app-dotnet. Aborting."
-              exit 1
-            fi
-          fi
+          $dest = 'C:\apps\myapp\publish'
+          if (-Not (Test-Path $dest)) { New-Item -ItemType Directory -Path $dest -Force | Out-Null }
+          Remove-Item -Path "$dest\*" -Recurse -Force -ErrorAction SilentlyContinue
+          Copy-Item -Path "C:\apps\myapp\publish-temp\*" -Destination $dest -Recurse -Force
 
-      - name: Build
+      - name: Restart service
+        shell: pwsh
         run: |
-          if [ -n "$SOL_PATH" ]; then
-            echo "Building $SOL_PATH"
-            dotnet build "$SOL_PATH" --no-restore
-          else
-            echo "Nothing to build"
+          if (Get-Service -Name "MyAppService" -ErrorAction SilentlyContinue) {
+            Stop-Service -Name "MyAppService" -Force -ErrorAction Continue
+            Start-Sleep -Seconds 2
+            Start-Service -Name "MyAppService"
+            Write-Host "Service restarted."
+          } else {
+            Write-Host "Service MyAppService not found - create it manually on the runner first."
             exit 1
-          fi
+          }
