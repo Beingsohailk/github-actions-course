@@ -21,14 +21,14 @@ jobs:
       - name: Publish app
         run: dotnet publish ./03-app-dotnet -c Release -o C:\apps\myapp\publish
 
-      - name: Stop existing process (if running)
-        shell: pwsh
+      - name: Stop existing process
+        shell: powershell
         run: |
-          $proc = Get-Process -Name "MyApp" -ErrorAction SilentlyContinue
-          if ($proc) {
-            Write-Host "Stopping existing process..."
-            $proc | Stop-Process -Force
-          }
+            $proc = Get-Process -Name "MyApp" -ErrorAction SilentlyContinue
+            if ($proc) {
+              Write-Host "Stopping existing process..."
+              $proc | Stop-Process -Force
+              }
 
       - name: Start app (background)
         shell: pwsh
