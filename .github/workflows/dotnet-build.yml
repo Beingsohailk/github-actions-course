@@ -1,43 +1,47 @@
-name: Deploy (service) to self-hosted Windows
+name: Build & Deploy to Self-Hosted Windows
 
 on:
-  workflow_dispatch:
   push:
     branches: [ "main" ]
+  workflow_dispatch:
 
 jobs:
-  publish-and-restart-service:
+  build-deploy:
     runs-on: [self-hosted, Windows]
 
+    defaults:
+      run:
+        working-directory: 03-app-dotnet
+
     steps:
-      - name: Checkout
+      - name: Checkout repo
         uses: actions/checkout@v4
 
-      - name: Setup .NET (optional)
+      - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '6.0.x'
 
-      - name: Publish app to temp folder
-        run: dotnet publish ./03-app-dotnet -c Release -o C:\apps\myapp\publish-temp
+      - name: Restore
+        run: dotnet restore
 
-      - name: Copy files to deployment folder
-        shell: pwsh
+      - name: Build
+        run: dotnet build --configuration Release --no-restore
+
+      - name: Publish to temp folder
+        run: dotnet publish -c Release -o C:\apps\myapp\publish-temp
+
+      - name: Copy to deploy folder
+        shell: powershell
         run: |
           $dest = 'C:\apps\myapp\publish'
-          if (-Not (Test-Path $dest)) { New-Item -ItemType Directory -Path $dest -Force | Out-Null }
+          if (-Not (Test-Path $dest)) {
+              New-Item -ItemType Directory -Path $dest -Force | Out-Null
+          }
           Remove-Item -Path "$dest\*" -Recurse -Force -ErrorAction SilentlyContinue
           Copy-Item -Path "C:\apps\myapp\publish-temp\*" -Destination $dest -Recurse -Force
 
-      - name: Restart service
-        shell: pwsh
+      - name: Stop existing process
+        shell: powershell
         run: |
-          if (Get-Service -Name "MyAppService" -ErrorAction SilentlyContinue) {
-            Stop-Service -Name "MyAppService" -Force -ErrorAction Continue
-            Start-Sleep -Seconds 2
-            Start-Service -Name "MyAppService"
-            Write-Host "Service restarted."
-          } else {
-            Write-Host "Service MyAppService not found - create it manually on the runner first."
-            exit 1
-          }
+          $proc = Get-Proc
