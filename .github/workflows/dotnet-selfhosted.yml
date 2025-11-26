@@ -1,0 +1,28 @@
+name: Dotnet Build - Self-hosted
+
+on:
+  push:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: self-hosted
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup .NET (if needed on runner)
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Restore (point to folder)
+        run: dotnet restore ./03-app-dotnet
+
+      - name: Build
+        run: dotnet build ./03-app-dotnet --no-restore
+
+      - name: Test
+        run: dotnet test ./03-app-dotnet --no-build --verbosity normal
